@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  voicepilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voicepilot-app
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=VoicePilot
+      - DEMO_MODE=true
+      - DEMO_API_KEY=voicepilot-demo-key
+      - STT_PROVIDER=mock
+      - TTS_PROVIDER=mock
+      - LLM_PROVIDER=mock
+      - MAX_AUDIO_SECONDS=30.0
+      - MIN_SNR_DB=10.0
+    restart: unless-stopped

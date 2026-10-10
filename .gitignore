@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Logs & temp files
+*.log
+*.tmp
+*.wav
+*.webm
+*.mp4
+/tmp/
+
+# Secrets & Local Environment
+.env
+.env.local
+
+# internal planning docs (not for the public repo)
+PRD.txt
+REVIEW-ADDENDUM.txt

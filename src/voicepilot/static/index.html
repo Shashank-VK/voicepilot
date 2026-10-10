@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoicePilot · Voice-First AI Agent</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-icon">⚡</span>
+        <div>
+          <h1>VoicePilot</h1>
+          <p class="subtitle">Low-Latency Spoken Agent Orchestration</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="session-badge">
+          Session: <code id="sessionIdDisplay">Initializing...</code>
+        </div>
+        <button id="resetDemoBtn" class="btn btn-secondary" title="Reseed fixtures and reset state safely">
+          🔄 Reset Demo
+        </button>
+        <button id="downloadTraceBtn" class="btn btn-secondary" title="Export session transcript and latency trace">
+          📥 Export JSON
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="main-grid">
+      <!-- Left Panel: Conversation & Controls -->
+      <section class="chat-section card">
+        <div class="card-header">
+          <h2>Conversation Stream (3-Turn Active Memory)</h2>
+          <!-- Client State Machine Badge -->
+          <div class="state-pill" id="statePill">
+            <span class="status-dot"></span>
+            <span id="currentStateText">idle</span>
+          </div>
+        </div>
+
+        <!-- Chat History -->
+        <div class="chat-container" id="chatContainer">
+          <div class="system-bubble">
+            <strong>VoicePilot Orchestrator Ready.</strong> Press & hold or click the microphone to speak, or use the scripted demo scenario buttons below.
+          </div>
+        </div>
+
+        <!-- Waveform visualizer -->
+        <div class="waveform-box">
+          <canvas id="waveformCanvas" width="500" height="40"></canvas>
+          <div class="vu-meter-bar" id="vuMeterBar"></div>
+        </div>
+
+        <!-- Actionable Error Banner -->
+        <div class="error-banner hidden" id="errorBanner">
+          <div class="error-content">
+            <span class="error-icon">⚠️</span>
+            <div id="errorMessageText">An error occurred</div>
+          </div>
+          <button class="btn-dismiss" id="dismissErrorBtn">×</button>
+        </div>
+
+        <!-- Mic & Control Area -->
+        <div class="controls-area">
+          <div class="mic-button-wrapper">
+            <button id="micBtn" class="btn-mic" aria-label="Microphone recording button">
+              <span class="mic-icon">🎙️</span>
+            </button>
+            <div class="mic-hint" id="micHint">Click or Hold to Speak</div>
+          </div>
+
+          <div class="action-buttons">
+            <button id="cancelTurnBtn" class="btn btn-danger" disabled title="Cancel in-flight recording, upload, agent and speech">
+              ✕ Cancel Turn
+            </button>
+            <button id="helpPermissionBtn" class="btn btn-outline" title="Microphone permission and device recovery instructions">
+              ❓ Mic Help
+            </button>
+          </div>
+        </div>
+
+        <!-- Scripted Demo Scenario Helper -->
+        <div class="demo-helpers">
+          <span class="helper-label">Demo Scenario:</span>
+          <button class="chip-btn" data-prompt="Summarize the Green Grid AI project">
+            1️⃣ Summarize Green Grid
+          </button>
+          <button class="chip-btn" data-prompt="Calculate a simple savings estimate">
+            2️⃣ Calculate Savings
+          </button>
+          <button class="chip-btn" data-prompt="Remember my preferred unit for the follow-up as kWh">
+            3️⃣ Set Unit: kWh
+          </button>
+        </div>
+      </section>
+
+      <!-- Right Panel: Telemetry & State Pipeline -->
+      <section class="telemetry-section">
+        <!-- Live Timing Waterfall -->
+        <div class="card timing-card">
+          <div class="card-header">
+            <h3>Latency Waterfall (Current Turn)</h3>
+            <span class="turn-id-tag" id="turnIdTag">Turn: None</span>
+          </div>
+          <div class="timing-bars">
+            <div class="timing-row">
+              <span class="stage-label">Upload</span>
+              <div class="bar-container"><div class="bar bar-upload" id="barUpload"></div></div>
+              <span class="stage-val" id="valUpload">0 ms</span>
+            </div>
+            <div class="timing-row">
+              <span class="stage-label">STT (Whisper)</span>
+              <div class="bar-container"><div class="bar bar-stt" id="barStt"></div></div>
+              <span class="stage-val" id="valStt">0 ms</span>
+            </div>
+            <div class="timing-row">
+              <span class="stage-label">LangGraph Agent</span>
+              <div class="bar-container"><div class="bar bar-agent" id="barAgent"></div></div>
+              <span class="stage-val" id="valAgent">0 ms</span>
+            </div>
+            <div class="timing-row">
+              <span class="stage-label">TTS Synthesis</span>
+              <div class="bar-container"><div class="bar bar-tts" id="barTts"></div></div>
+              <span class="stage-val" id="valTts">0 ms</span>
+            </div>
+            <div class="timing-row total-row">
+              <span class="stage-label"><strong>Total Turn Time</strong></span>
+              <div class="bar-container"><div class="bar bar-total" id="barTotal"></div></div>
+              <span class="stage-val" id="valTotal">0 ms</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Percentile Stats Card -->
+        <div class="card stats-card">
+          <div class="card-header">
+            <h3>Aggregated Telemetry (p50 / p95)</h3>
+            <button id="refreshStatsBtn" class="btn-icon" title="Refresh metrics">🔄</button>
+          </div>
+          <div class="stats-table-wrapper">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Stage</th>
+                  <th>Mean</th>
+                  <th>p50</th>
+                  <th>p95</th>
+                </tr>
+              </thead>
+              <tbody id="statsTableBody">
+                <tr><td colspan="4">Loading metrics...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="stats-meta">
+            <span>Target budget: &lt; 4,000 ms</span>
+            <span id="turnCountBadge">Turns: 0</span>
+          </div>
+        </div>
+
+        <!-- Architecture State Reference -->
+        <div class="card pipeline-card">
+          <div class="card-header">
+            <h3>Client State Machine</h3>
+          </div>
+          <div class="state-chips">
+            <span class="chip" data-state="idle">idle</span>
+            <span class="chip" data-state="recording">recording</span>
+            <span class="chip" data-state="uploading">uploading</span>
+            <span class="chip" data-state="transcribing">transcribing</span>
+            <span class="chip" data-state="reasoning">reasoning</span>
+            <span class="chip" data-state="speaking">speaking</span>
+            <span class="chip" data-state="cancelled">cancelled</span>
+            <span class="chip" data-state="error">error</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Microphone Permission Recovery Modal -->
+    <div class="modal hidden" id="permissionModal">
+      <div class="modal-backdrop" id="modalBackdrop"></div>
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Microphone Permissions & Troubleshooting Guide</h3>
+          <button class="btn-close" id="closeModalBtn">×</button>
+        </div>
+        <div class="modal-body">
+          <h4>1. Chrome & Edge</h4>
+          <p>Click the 🔒 icon next to the address bar → ensure <strong>Microphone</strong> is set to <em>Allow</em>. Refresh the page.</p>
+
+          <h4>2. Safari / iOS</h4>
+          <p>Tap <strong>aA</strong> in the address bar → <em>Website Settings</em> → set <em>Microphone</em> to <em>Allow</em>.</p>
+
+          <h4>3. Meet, Zoom, or Teams Contention</h4>
+          <p>If another active call (Google Meet, Zoom, Webex) is holding exclusive access to your microphone, mute or leave that tab so the browser can acquire the audio stream.</p>
+
+          <h4>4. Offline / No Mic Setup</h4>
+          <p>You can click any of the <strong>Demo Scenario</strong> buttons to execute clean synthesized audio turns without needing a physical microphone.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="gotItBtn">Got It</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

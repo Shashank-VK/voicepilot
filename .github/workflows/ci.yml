@@ -1,0 +1,53 @@
+name: VoicePilot CI Gate
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install system dependencies (FFmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Run Ruff Lint and Format check
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Run Test Suite (100% Offline with Mocks & Audio Fixtures)
+        env:
+          DEMO_MODE: "true"
+          STT_PROVIDER: "mock"
+          TTS_PROVIDER: "mock"
+          LLM_PROVIDER: "mock"
+        run: |
+          pytest -v --cov=voicepilot --cov-report=xml --cov-report=term-missing
+
+      - name: Run Latency Benchmark CLI
+        run: |
+          python -m voicepilot.cli bench --iterations 5
