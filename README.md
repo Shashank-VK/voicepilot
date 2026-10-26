@@ -219,3 +219,21 @@ make bench
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Mic[User microphone] --> UI[Web UI / WebSocket]
+    UI --> Server[FastAPI server]
+    Server --> STT[STT adapters<br/>Groq / local / mock]
+    STT --> Agent[LangGraph agent<br/>graph + memory + tools]
+    Agent --> TTS[TTS adapters<br/>Edge / mock]
+    TTS --> Speaker[Speaker output]
+    Server --> Metrics[Metrics endpoint]
+```
+Voice goes in through speech-to-text, through the LangGraph agent, and
+back out through text-to-speech. Adapters are swappable, so the same
+pipeline runs with hosted, local, or mock providers. Docker + Compose
+ships the whole thing.
+
